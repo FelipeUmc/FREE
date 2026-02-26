@@ -1,0 +1,1886 @@
+--no final voce realmente coseguiu desofuscar ne fdp kkkkk--
+--#Fudeu--
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local CoreGui = game:GetService("CoreGui")
+local TextChatService = game:GetService("TextChatService")
+
+local player = Players.LocalPlayer
+
+-- ============================================
+-- MENU SPEED BOOST
+-- ============================================
+
+-- Variáveis do Speed
+local speedBoostEnabled = false
+local boostSpeed = 28
+local speedConnection2 = nil
+local speedMenuFrame = nil
+local speedButton = nil
+local speedInput = nil
+
+-- Função de movimento do Speed
+local function getMovementDirection()
+    local character = player.Character
+    if not character then return Vector3.zero end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.MoveDirection or Vector3.zero
+end
+
+local function startSpeedBoost2()
+    if speedConnection2 then return end
+    
+    speedConnection2 = RunService.Heartbeat:Connect(function()
+        if not speedBoostEnabled then return end
+        
+        pcall(function()
+            local character = player.Character
+            if not character then return end
+            
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not rootPart then return end
+            
+            local moveDir = getMovementDirection()
+            
+            if moveDir.Magnitude > 0.1 then
+                rootPart.AssemblyLinearVelocity = Vector3.new(
+                    moveDir.X * boostSpeed,
+                    rootPart.AssemblyLinearVelocity.Y,
+                    moveDir.Z * boostSpeed
+                )
+            end
+        end)
+    end)
+end
+
+local function stopSpeedBoost2()
+    if speedConnection2 then
+        speedConnection2:Disconnect()
+        speedConnection2 = nil
+    end
+end
+
+-- Função para criar o menu do Speed
+local function criarMenuSpeed()
+    -- Frame do menu Speed
+    speedMenuFrame = Instance.new("Frame")
+    speedMenuFrame.Name = "SpeedMenuFrame"
+    speedMenuFrame.Size = UDim2.new(0, 150, 0, 70)
+    speedMenuFrame.Position = UDim2.new(1, -165, 0.5, 50)
+    speedMenuFrame.AnchorPoint = Vector2.new(0, 0.5)
+    speedMenuFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    speedMenuFrame.BackgroundTransparency = 0.25
+    speedMenuFrame.BorderSizePixel = 0
+    speedMenuFrame.Active = true
+    speedMenuFrame.ClipsDescendants = false
+    speedMenuFrame.Visible = false
+    -- CORREÇÃO: aponta diretamente para o GUI principal que já existe
+    speedMenuFrame.Parent = game:GetService("CoreGui"):FindFirstChild("SilentHubGui")
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = speedMenuFrame
+
+    -- Borda gradiente
+    local borderStroke = Instance.new("UIStroke")
+    borderStroke.Thickness = 4
+    borderStroke.Color = Color3.fromRGB(255, 255, 255)
+    borderStroke.Transparency = 0
+    borderStroke.Parent = speedMenuFrame
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Rotation = 0
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+        ColorSequenceKeypoint.new(0.3, Color3.fromRGB(160,0,255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,0,0)),
+        ColorSequenceKeypoint.new(0.7, Color3.fromRGB(160,0,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0))
+    }
+    gradient.Parent = borderStroke
+
+    -- Animação da borda
+    task.spawn(function()
+        while borderStroke and borderStroke.Parent do
+            gradient.Offset = Vector2.new(-1,0)
+            local tween = TweenService:Create(gradient, 
+                TweenInfo.new(1.8, Enum.EasingStyle.Linear), 
+                {Offset = Vector2.new(1,0)})
+            tween:Play()
+            tween.Completed:Wait()
+        end
+    end)
+
+    -- Layout
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.FillDirection = Enum.FillDirection.Vertical
+    listLayout.Padding = UDim.new(0, 4)
+    listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    listLayout.Parent = speedMenuFrame
+
+    local padding = Instance.new("UIPadding")
+    padding.PaddingTop = UDim.new(0, 6)
+    padding.PaddingBottom = UDim.new(0, 6)
+    padding.PaddingLeft = UDim.new(0, 6)
+    padding.PaddingRight = UDim.new(0, 6)
+    padding.Parent = speedMenuFrame
+
+    -- Input de velocidade
+    local inputFrame = Instance.new("Frame")
+    inputFrame.Size = UDim2.new(1, -12, 0, 24)
+    inputFrame.BackgroundTransparency = 1
+    inputFrame.Parent = speedMenuFrame
+
+    speedInput = Instance.new("TextBox")
+    speedInput.Size = UDim2.new(1, 0, 1, 0)
+    speedInput.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    speedInput.BackgroundTransparency = 0
+    speedInput.Text = tostring(boostSpeed)
+    speedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedInput.Font = Enum.Font.GothamBold
+    speedInput.TextSize = 14
+    speedInput.TextScaled = true
+    speedInput.ClearTextOnFocus = false
+    speedInput.Parent = inputFrame
+
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 6)
+    inputCorner.Parent = speedInput
+
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Thickness = 1.5
+    inputStroke.Color = Color3.fromRGB(160, 0, 255)
+    inputStroke.Parent = speedInput
+
+    speedInput.TextXAlignment = Enum.TextXAlignment.Center
+
+    -- Botão SPEED
+    local buttonFrame = Instance.new("Frame")
+    buttonFrame.Size = UDim2.new(1, -12, 0, 28)
+    buttonFrame.BackgroundTransparency = 1
+    buttonFrame.Parent = speedMenuFrame
+
+    speedButton = Instance.new("TextButton")
+    speedButton.Size = UDim2.new(1, 0, 1, 0)
+    speedButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    speedButton.BackgroundTransparency = 0
+    speedButton.Text = "SPEED"
+    speedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedButton.Font = Enum.Font.GothamBold
+    speedButton.TextSize = 11
+    speedButton.TextScaled = false
+    speedButton.AutoButtonColor = false
+    speedButton.Parent = buttonFrame
+
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = speedButton
+
+    local buttonStroke = Instance.new("UIStroke")
+    buttonStroke.Thickness = 2
+    buttonStroke.Color = Color3.fromRGB(160, 0, 255)
+    buttonStroke.Parent = speedButton
+
+    speedButton.TextStrokeTransparency = 0
+    speedButton.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+
+    -- Evento do botão SPEED
+    speedButton.MouseButton1Click:Connect(function()
+        local newState = not speedBoostEnabled
+        speedBoostEnabled = newState
+        
+        local targetColor = newState and Color3.fromRGB(160, 0, 255) or Color3.fromRGB(0, 0, 0)
+        TweenService:Create(speedButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = targetColor
+        }):Play()
+        
+        if newState then
+            startSpeedBoost2()
+        else
+            stopSpeedBoost2()
+        end
+    end)
+
+    -- Input de velocidade
+    speedInput.FocusLost:Connect(function()
+        local newSpeed = tonumber(speedInput.Text)
+        if newSpeed then
+            boostSpeed = math.clamp(math.floor(newSpeed), 1, 200)
+            speedInput.Text = tostring(boostSpeed)
+        else
+            speedInput.Text = tostring(boostSpeed)
+        end
+    end)
+
+    -- Sistema de arrastar
+    local dragging = false
+    local dragStart
+    local startPos
+
+    speedMenuFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = speedMenuFrame.Position
+        end
+    end)
+
+    speedMenuFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                         input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            speedMenuFrame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale, 
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- Função para controlar o menu Speed
+local function controlarSpeedMenu(ligar)
+    if ligar then
+        if not speedMenuFrame then
+            criarMenuSpeed()
+        end
+        if speedMenuFrame then
+            speedMenuFrame.Visible = true
+        end
+    else
+        if speedMenuFrame then
+            speedMenuFrame.Visible = false
+        end
+        if speedBoostEnabled then
+            speedBoostEnabled = false
+            if speedButton then
+                speedButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            end
+            stopSpeedBoost2()
+        end
+    end
+end
+
+local pos1 = Vector3.new(-366.84, -7.00, 45.90)
+local pos2 = Vector3.new(-371.30, -7.00, 73.50)
+local standing1 = Vector3.new(-336.36, -4.59, 99.51)
+local standing2 = Vector3.new(-334.81, -4.59, 18.90)
+
+local spot1_sequence = {
+CFrame.new(-370.810913, -7.00000334, 41.2687263, 0.99984771, 1.22364419e-09, 0.0174523517, -6.54859778e-10, 1, -3.2596418e-08, -0.0174523517, 3.25800258e-08, 0.99984771),
+CFrame.new(-336.355286, -5.10107088, 17.2327671, -0.999883354, -2.76150569e-08, 0.0152716246, -2.88224964e-08, 1, -7.88441525e-08, -0.0152716246, -7.9275118e-08, -0.999883354)
+}
+
+local spot2_sequence = {
+CFrame.new(-354.782867, -7.00000334, 92.8209305, -0.999997616, -1.11891862e-09, -0.00218066527, -1.11958298e-09, 1, 3.03415071e-10, 0.00218066527, 3.05855785e-10, -0.999997616),
+CFrame.new(-336.942902, -5.10106993, 99.3276443, 0.999914348, -3.63984611e-08, 0.0130875716, 3.67094941e-08, 1, -2.35254749e-08, -0.0130875716, 2.40038975e-08, 0.999914348)
+}
+
+if CoreGui:FindFirstChild("SilentHubGui") then
+CoreGui["SilentHubGui"]:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SilentHubGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = CoreGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 182, 0, 205)
+mainFrame.Position = UDim2.new(1, -197, 0.5, -175)
+mainFrame.AnchorPoint = Vector2.new(0, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BackgroundTransparency = 0.25
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.ClipsDescendants = false
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner", mainFrame)
+corner.CornerRadius = UDim.new(0, 8)
+
+-- BORDA ESTILO SNIPEX ITS (ROXO COM PRETO ANIMADO) - CORRIGIDA
+local borderStroke = Instance.new("UIStroke")
+borderStroke.Thickness = 4
+borderStroke.Color = Color3.fromRGB(255, 255, 255)
+borderStroke.Transparency = 0
+borderStroke.Parent = mainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 0
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(160,0,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.7, Color3.fromRGB(160,0,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0))
+}
+gradient.Parent = borderStroke
+
+-- Animação da borda (igual ao SNIPEX ITS)
+task.spawn(function()
+    while true do
+        gradient.Offset = Vector2.new(-1,0)
+        local tween = TweenService:Create(gradient, TweenInfo.new(1.8, Enum.EasingStyle.Linear), {Offset = Vector2.new(1,0)})
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end)
+
+local titleContainer = Instance.new("Frame")
+titleContainer.Size = UDim2.new(1, 0, 0, 23)
+titleContainer.Position = UDim2.new(0, 0, 0, 3)
+titleContainer.BackgroundTransparency = 1
+titleContainer.Parent = mainFrame
+
+-- TÍTULO BRANCO COM CONTORNO ROXO (TAMANHO AUMENTADO)
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "SNIPEX ITS V2"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 24
+title.Font = Enum.Font.GothamBlack
+title.TextStrokeTransparency = 0
+title.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+title.Parent = titleContainer
+
+-- DIVIDER ROXA
+local underline = Instance.new("Frame")
+underline.Size = UDim2.new(0.8, 0, 0, 2)
+underline.Position = UDim2.new(0.1, 0, 0, 26)
+underline.BackgroundColor3 = Color3.fromRGB(160, 0, 255)
+underline.BorderSizePixel = 0
+underline.Parent = mainFrame
+
+-- SUBTÍTULO BRANCO COM CONTORNO ROXO
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(1, 0, 0, 12)
+subtitle.Position = UDim2.new(0, 0, 0, 29)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "CREATED BY SNIPEX COMMUNITY"
+subtitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+subtitle.TextSize = 8
+subtitle.Font = Enum.Font.GothamBold
+subtitle.TextStrokeTransparency = 0
+subtitle.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+subtitle.Parent = mainFrame
+
+local semiTPEnabled = false
+local speedConnection = nil
+local SPEED_BOOST = 28
+local autoKickEnabled = false
+
+local function ResetToWork()
+local flags = {
+{"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
+{"LargeReplicatorWrite5", "true"},
+{"LargeReplicatorEnabled9", "true"},
+{"AngularVelociryLimit", "360"},
+{"TimestepArbiterVelocityCriteriaThresholdTwoDt", "2147483646"},
+{"S2PhysicsSenderRate", "15000"},
+{"DisableDPIScale", "true"},
+{"MaxDataPacketPerSend", "2147483647"},
+{"ServerMaxBandwith", "52"},
+{"PhysicsSenderMaxBandwidthBps", "20000"},
+{"MaxTimestepMultiplierBuoyancy", "2147483647"},
+{"SimOwnedNOUCountThresholdMillionth", "2147483647"},
+{"MaxMissedWorldStepsRemembered", "-2147483648"},
+{"CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth", "1"},
+{"StreamJobNOUVolumeLengthCap", "2147483647"},
+{"DebugSendDistInSteps", "-2147483648"},
+{"MaxTimestepMultiplierAcceleration", "2147483647"},
+{"LargeReplicatorRead5", "true"},
+{"SimExplicitlyCappedTimestepMultiplier", "2147483646"},
+{"GameNetDontSendRedundantNumTimes", "1"},
+{"CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent", "1"},
+{"CheckPVCachedRotVelThresholdPercent", "10"},
+{"LargeReplicatorSerializeRead3", "true"},
+{"ReplicationFocusNouExtentsSizeCutoffForPauseStuds", "2147483647"},
+{"NextGenReplicatorEnabledWrite4", "true"},
+{"CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth", "1"},
+{"GameNetDontSendRedundantDeltaPositionMillionth", "1"},
+{"InterpolationFrameVelocityThresholdMillionth", "5"},
+{"StreamJobNOUVolumeCap", "2147483647"},
+{"InterpolationFrameRotVelocityThresholdMillionth", "5"},
+{"WorldStepMax", "30"},
+{"TimestepArbiterHumanoidLinearVelThreshold", "1"},
+{"InterpolationFramePositionThresholdMillionth", "5"},
+{"TimestepArbiterHumanoidTurningVelThreshold", "1"},
+{"MaxTimestepMultiplierContstraint", "2147483647"},
+{"GameNetPVHeaderLinearVelocityZeroCutoffExponent", "-5000"},
+{"CheckPVCachedVelThresholdPercent", "10"},
+{"TimestepArbiterOmegaThou", "1073741823"},
+{"MaxAcceptableUpdateDelay", "1"},
+{"LargeReplicatorSerializeWrite4", "true"},
+}
+for _, data in ipairs(flags) do
+pcall(function() if setfflag then setfflag(data[1], data[2]) end end)
+end
+local char = player.Character
+if char then
+local hum = char:FindFirstChildOfClass("Humanoid")
+if hum then hum:ChangeState(Enum.HumanoidStateType.Dead) end
+char:ClearAllChildren()
+local f = Instance.new("Model", workspace)
+player.Character = f task.wait()
+player.Character = char f:Destroy()
+end
+end
+
+-- FUNÇÃO PARA PEGAR JOGADOR MAIS PRÓXIMO
+local function getNearestPlayer()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    local root = char.HumanoidRootPart
+    local nearest, distance = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local mag = (root.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if mag < distance then
+                distance = mag
+                nearest = p
+            end
+        end
+    end
+    return nearest
+end
+
+-- FUNÇÃO DE TP COM SPAM AUTOMÁTICO
+local function executeTP(sequence)
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local backpack = player:FindFirstChild("Backpack")
+
+    if root and hum and backpack then
+        local carpet = backpack:FindFirstChild("Flying Carpet")
+        if carpet then
+            hum:EquipTool(carpet)
+            task.wait(0.1)
+        end
+        root.CFrame = sequence[1]
+        task.wait(0.1)
+        root.CFrame = sequence[2]
+    end
+end
+
+local function teleportWithCarpet(sequence)
+local char = player.Character
+local hum = char and char:FindFirstChildOfClass("Humanoid")
+local backpack = player:FindFirstChild("Backpack")
+
+if hum and backpack then
+    local carpet = backpack:FindFirstChild("Flying Carpet")
+    if carpet then
+        hum:EquipTool(carpet)
+        task.wait(0.1)
+    end
+end
+executeTP(sequence)
+end
+
+-- FUNÇÃO DOS BOTÕES TOGGLE (PRETO/ROXO)
+local function createToggle(text, position, callback)
+local container = Instance.new("Frame")
+container.Size = UDim2.new(0.9, 0, 0, 23)
+container.Position = position
+container.BackgroundTransparency = 1
+container.Parent = mainFrame
+
+-- TEXTO BRANCO COM CONTORNO ROXO
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, -40, 1, 0)
+label.BackgroundTransparency = 1
+label.Text = text
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.TextSize = 12
+label.Font = Enum.Font.GothamBold
+label.TextStrokeTransparency = 0
+label.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.Parent = container
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 35, 0, 18)
+btn.Position = UDim2.new(1, -35, 0.5, -9)
+btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+btn.Text = ""
+btn.Parent = container
+
+local btnCorner = Instance.new("UICorner", btn)
+btnCorner.CornerRadius = UDim.new(1, 0)
+
+local dot = Instance.new("Frame")
+dot.Size = UDim2.new(0, 14, 0, 14)
+dot.Position = UDim2.new(0, 2, 0.5, -7)
+dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+dot.Parent = btn
+
+local dotCorner = Instance.new("UICorner", dot)
+dotCorner.CornerRadius = UDim.new(1, 0)
+
+local active = false
+
+btn.MouseButton1Click:Connect(function()
+    active = not active
+    local goal = active and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    local col = active and Color3.fromRGB(160, 0, 255) or Color3.fromRGB(0, 0, 0)
+    TweenService:Create(dot, TweenInfo.new(0.15), {Position = goal}):Play()
+    TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = col}):Play()
+    callback(active)
+end)
+end
+
+-- CRIAÇÃO DOS BOTÕES
+createToggle("TP LOL", UDim2.new(0.05, 0, 0, 45), function(state) semiTPEnabled = state end)
+createToggle("AUTO KICK", UDim2.new(0.05, 0, 0, 71), function(state)
+    autoKickEnabled = state
+end)
+createToggle("SPEED GUI", UDim2.new(0.05, 0, 0, 97), function(state)
+    controlarSpeedMenu(state)
+end)
+
+task.spawn(function()
+task.wait(1)
+ResetToWork()
+end)
+
+-- TEXTO DO DISCORD BRANCO COM CONTORNO ROXO
+local discordText = Instance.new("TextLabel")
+discordText.Size = UDim2.new(1, 0, 0, 12)
+discordText.Position = UDim2.new(0, 0, 1, -15)
+discordText.BackgroundTransparency = 1
+discordText.Text = "https://discord.gg/fQPhzra6B"
+discordText.TextColor3 = Color3.fromRGB(255, 255, 255)
+discordText.TextSize = 7
+discordText.Font = Enum.Font.GothamBold
+discordText.TextStrokeTransparency = 0
+discordText.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+discordText.Parent = mainFrame
+
+local currentEquipTask = nil
+local isHolding = false
+
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt, plr)
+if plr ~= player or not semiTPEnabled then return end
+isHolding = true
+if currentEquipTask then task.cancel(currentEquipTask) end
+
+currentEquipTask = task.spawn(function() task.wait(1) if isHolding and semiTPEnabled then local backpack = player:WaitForChild("Backpack", 2) if backpack then local carpet = backpack:FindFirstChild("Flying Carpet") if carpet and player.Character and player.Character:FindFirstChild("Humanoid") then player.Character.Humanoid:EquipTool(carpet) end end end end)
+end)
+
+ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt, plr)
+if plr ~= player then return end
+isHolding = false
+if currentEquipTask then task.cancel(currentEquipTask) end
+end)
+
+ProximityPromptService.PromptTriggered:Connect(function(prompt, plr)
+    if plr ~= player or not semiTPEnabled then return end
+
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local backpack = player:FindFirstChild("Backpack")
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if backpack and hum then
+            local carpet = backpack:FindFirstChild("Flying Carpet")
+            if carpet then
+                hum:EquipTool(carpet)
+                task.wait(0.1)
+            end
+        end
+        local d1 = (root.Position - pos1).Magnitude
+        local d2 = (root.Position - pos2).Magnitude
+        local targetPos = d1 < d2 and pos1 or pos2
+        root.CFrame = CFrame.new(targetPos)
+    end
+    isHolding = false
+end)
+
+local dragging, dragStart, startPos
+mainFrame.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = true
+dragStart = input.Position
+startPos = mainFrame.Position
+end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+local delta = input.Position - dragStart
+mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = false
+end
+end)
+
+local combo_AUTO_STEAL_PROX_RADIUS = 200
+local combo_IsStealing = false
+local combo_StealProgress = 0
+local combo_ComboActive = false
+
+local function startComboStealMonitor()
+if combo_ComboActive then return end
+combo_ComboActive = true
+task.spawn(function()
+while combo_ComboActive do
+if combo_IsStealing and combo_StealProgress >= 0.73 then
+
+local char = player.Character local root = char and char:FindFirstChild("HumanoidRootPart") if root then local hum = char:FindFirstChildOfClass("Humanoid") local backpack = player:FindFirstChild("Backpack") if hum and backpack then local carpet = backpack:FindFirstChild("Flying Carpet") if carpet then hum:EquipTool(carpet) task.wait(0.1) end end root.CFrame = spot1_sequence[1] task.spawn(function() task.wait(0.1) root.CFrame = spot1_sequence[2] end) task.spawn(function() task.wait(0.313) local d1 = (root.Position - pos1).Magnitude local d2 = (root.Position - pos2).Magnitude local targetPos = d1 < d2 and pos1 or pos2 root.CFrame = CFrame.new(targetPos) end) end repeat task.wait(0.1) until not combo_IsStealing end task.wait(0.05) end end)
+end
+
+task.spawn(function()
+while true do
+if combo_ComboActive then
+combo_IsStealing = true
+for i = 0, 100 do
+combo_StealProgress = i / 100
+task.wait(0.013)
+end
+combo_IsStealing = false
+combo_StealProgress = 0
+task.wait(1)
+else
+task.wait(0.1)
+end
+end
+end)
+
+local CONFIG = {
+ANTI_STEAL_ACTIVE = false,
+}
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local AnimalsData = require(ReplicatedStorage:WaitForChild("Datas"):WaitForChild("Animals"))
+
+local allAnimalsCache = {}
+local PromptMemoryCache = {}
+local InternalStealCache = {}
+
+local IsStealing = false
+local StealProgress = 0
+local CurrentStealTarget = nil
+
+local AUTO_STEAL_PROX_RADIUS = 200
+
+local function getHRP()
+local char = player.Character
+if not char then return nil end
+return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
+end
+
+local function isMyBase(plotName)
+local plot = workspace.Plots:FindFirstChild(plotName)
+if not plot then return false end
+local sign = plot:FindFirstChild("PlotSign")
+return sign and sign:FindFirstChild("YourBase") and sign.YourBase.Enabled
+end
+
+local function scanSinglePlot(plot)
+if not plot or not plot:IsA("Model") or isMyBase(plot.Name) then return end
+local podiums = plot:FindFirstChild("AnimalPodiums")
+if not podiums then return end
+
+for _, podium in ipairs(podiums:GetChildren()) do if podium:IsA("Model") and podium:FindFirstChild("Base") then table.insert(allAnimalsCache, { plot = plot.Name, slot = podium.Name, worldPosition = podium:GetPivot().Position, uid = plot.Name .. "_" .. podium.Name, }) end end
+end
+
+local function initializeScanner()
+task.wait(2)
+local plots = workspace:WaitForChild("Plots", 10)
+
+for _, plot in ipairs(plots:GetChildren()) do scanSinglePlot(plot) end plots.ChildAdded:Connect(scanSinglePlot) task.spawn(function() while task.wait(5) do table.clear(allAnimalsCache) for _, plot in ipairs(plots:GetChildren()) do scanSinglePlot(plot) end end end)
+end
+
+local function findPrompt(animal)
+local cached = PromptMemoryCache[animal.uid]
+if cached and cached.Parent then return cached end
+
+local plot = workspace.Plots:FindFirstChild(animal.plot) local podium = plot and plot.AnimalPodiums:FindFirstChild(animal.slot) local prompt = podium and podium.Base.Spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt") if prompt then PromptMemoryCache[animal.uid] = prompt end return prompt
+end
+
+local function buildStealCallbacks(prompt)
+if InternalStealCache[prompt] then return end
+
+local data = { holdCallbacks = {}, triggerCallbacks = {}, ready = true } local ok1, conns1 = pcall(getconnections, prompt.PromptButtonHoldBegan) if ok1 then for _, c in ipairs(conns1) do table.insert(data.holdCallbacks, c.Function) end end local ok2, conns2 = pcall(getconnections, prompt.Triggered) if ok2 then for _, c in ipairs(conns2) do table.insert(data.triggerCallbacks, c.Function) end end InternalStealCache[prompt] = data
+end
+
+local function executeInternalStealAsync(prompt, animalData)
+local data = InternalStealCache[prompt]
+if not data or not data.ready or IsStealing then return end
+
+data.ready = false IsStealing = true StealProgress = 0 CurrentStealTarget = animalData local tpDone = false task.spawn(function() for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end local startTime = tick() while tick() - startTime < 1.3 do StealProgress = (tick() - startTime) / 1.3 if StealProgress >= 0.73 and not tpDone then tpDone = true local hrp = getHRP() if hrp then local char = player.Character local hum = char and char:FindFirstChildOfClass("Humanoid") local backpack = player:FindFirstChild("Backpack") if hum and backpack then local carpet = backpack:FindFirstChild("Flying Carpet") if carpet then hum:EquipTool(carpet) task.wait(0.1) end end hrp.CFrame = spot1_sequence[1] task.wait(0.1) hrp.CFrame = spot1_sequence[2] task.wait(0.2) local d1 = (hrp.Position - pos1).Magnitude local d2 = (hrp.Position - pos2).Magnitude hrp.CFrame = CFrame.new(d1 < d2 and pos1 or pos2) end end task.wait() end StealProgress = 1 for _, fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end task.wait(0.2) data.ready = true IsStealing = false StealProgress = 0 CurrentStealTarget = nil CONFIG.ANTI_STEAL_ACTIVE = false end)
+end
+
+local function getNearestAnimal()
+local hrp = getHRP()
+if not hrp then return nil end
+
+local nearest, dist = nil, math.huge for _, animal in ipairs(allAnimalsCache) do local d = (hrp.Position - animal.worldPosition).Magnitude if d < dist and d <= AUTO_STEAL_PROX_RADIUS then dist = d nearest = animal end end return nearest
+end
+
+-- BOTÃO AUTO TP LEFT (PRETO COM LETRAS BRANCAS E CONTORNO ROXO) - CORRIGIDO COM SPAM
+local antiStealButton = Instance.new("TextButton")
+antiStealButton.Name = "AntiStealButton"
+antiStealButton.Size = UDim2.new(0.9, 0, 0, 23)
+antiStealButton.Position = UDim2.new(0.05, 0, 0, 123)
+antiStealButton.Text = "TP LEFT"
+antiStealButton.Font = Enum.Font.GothamBold
+antiStealButton.TextSize = 9
+antiStealButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+antiStealButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+antiStealButton.TextStrokeTransparency = 0
+antiStealButton.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+antiStealButton.Parent = mainFrame
+
+local btnCorner = Instance.new("UICorner", antiStealButton)
+btnCorner.CornerRadius = UDim.new(0, 4)
+
+local btnStroke = Instance.new("UIStroke", antiStealButton)
+btnStroke.Color = Color3.fromRGB(160, 0, 255)
+btnStroke.Thickness = 2
+btnStroke.Transparency = 0
+
+-- EFEITO DE CLIQUE + SPAM APÓS 1 SEGUNDO
+antiStealButton.MouseButton1Click:Connect(function()
+    -- Efeito visual
+    antiStealButton.BackgroundColor3 = Color3.fromRGB(160, 0, 255)
+    task.wait(0.1)
+    antiStealButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    
+    -- Executa o TP
+    if IsStealing then return end
+    CONFIG.ANTI_STEAL_ACTIVE = true
+    local animal = getNearestAnimal()
+    if not animal then return end
+    local prompt = findPrompt(animal)
+    if not prompt then return end
+    buildStealCallbacks(prompt)
+    executeInternalStealAsync(prompt, animal)
+    
+    -- ⏱️ ESPERA 1 SEGUNDO E DEPOIS MANDA OS COMANDOS
+    task.spawn(function()
+        task.wait(1.50)
+        local nearest = getNearestPlayer()
+        if nearest then
+            if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+                local channel = TextChatService.TextChannels:WaitForChild("RBXGeneral")
+                local commands = {
+                    ";jumpscare ",
+                    ";morph ",
+                    "tiny ",
+                    ";inverse ",
+                    ";nightvision ",
+                    ";rocket ",
+                    ";balloon ",
+                    ";ragdoll "
+                }
+                for _, cmd in ipairs(commands) do
+                    pcall(function()
+                        channel:SendAsync(cmd .. nearest.Name)
+                    end)
+                    task.wait(0.1)
+                end
+                task.wait(1)
+                pcall(function()
+                    channel:SendAsync(";jail " .. nearest.Name)
+                end)
+            end
+        end
+    end)
+end)
+
+-- BOTÃO AUTO TP RIGHT (PRETO COM LETRAS BRANCAS E CONTORNO ROXO) - CORRIGIDO COM SPAM
+local autoTpRightButton = Instance.new("TextButton")
+autoTpRightButton.Name = "AutoTpRightButton"
+autoTpRightButton.Size = UDim2.new(0.9, 0, 0, 23)
+autoTpRightButton.Position = UDim2.new(0.05, 0, 0, 149)
+autoTpRightButton.Text = "TP RIGHT"
+autoTpRightButton.Font = Enum.Font.GothamBold
+autoTpRightButton.TextSize = 9
+autoTpRightButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+autoTpRightButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoTpRightButton.TextStrokeTransparency = 0
+autoTpRightButton.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+autoTpRightButton.Parent = mainFrame
+
+local btnCorner2 = Instance.new("UICorner", autoTpRightButton)
+btnCorner2.CornerRadius = UDim.new(0, 4)
+
+local btnStroke2 = Instance.new("UIStroke", autoTpRightButton)
+btnStroke2.Color = Color3.fromRGB(160, 0, 255)
+btnStroke2.Thickness = 2
+btnStroke2.Transparency = 0
+
+-- EFEITO DE CLIQUE + SPAM APÓS 1 SEGUNDO
+autoTpRightButton.MouseButton1Click:Connect(function()
+    -- Efeito visual
+    autoTpRightButton.BackgroundColor3 = Color3.fromRGB(160, 0, 255)
+    task.wait(0.1)
+    autoTpRightButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    
+    -- Executa o TP
+    if IsStealing then return end
+    CONFIG.ANTI_STEAL_ACTIVE = true
+    local animal = getNearestAnimal()
+    if not animal then return end
+    local prompt = findPrompt(animal)
+    if not prompt then return end
+    buildStealCallbacks(prompt)
+    local data = InternalStealCache[prompt]
+    if not data or not data.ready or IsStealing then return end
+    data.ready = false
+    IsStealing = true
+    StealProgress = 0
+    CurrentStealTarget = animal
+    local tpDone = false
+    task.spawn(function()
+        for _, fn in ipairs(data.holdCallbacks) do
+            task.spawn(fn)
+        end
+        local startTime = tick()
+        while tick() - startTime < 1.3 do
+            StealProgress = (tick() - startTime) / 1.3
+            if StealProgress >= 0.73 and not tpDone then
+                tpDone = true
+                local hrp = getHRP()
+                if hrp then
+                    local char = player.Character
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+                    local backpack = player:FindFirstChild("Backpack")
+                    if hum and backpack then
+                        local carpet = backpack:FindFirstChild("Flying Carpet")
+                        if carpet then
+                            hum:EquipTool(carpet)
+                            task.wait(0.1)
+                        end
+                    end
+                    hrp.CFrame = spot2_sequence[1]
+                    task.wait(0.1)
+                    hrp.CFrame = spot2_sequence[2]
+                    task.wait(0.2)
+                    local d1 = (hrp.Position - pos1).Magnitude
+                    local d2 = (hrp.Position - pos2).Magnitude
+                    hrp.CFrame = CFrame.new(d1 < d2 and pos1 or pos2)
+                end
+            end
+            task.wait()
+        end
+        StealProgress = 1
+        for _, fn in ipairs(data.triggerCallbacks) do
+            task.spawn(fn)
+        end
+        task.wait(0.2)
+        data.ready = true
+        IsStealing = false
+        StealProgress = 0
+        CurrentStealTarget = nil
+        CONFIG.ANTI_STEAL_ACTIVE = false
+        
+        -- ⏱️ ESPERA 1 SEGUNDO E DEPOIS MANDA OS COMANDOS
+        task.spawn(function()
+            task.wait(0.50)
+            local nearest = getNearestPlayer()
+            if nearest then
+                if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+                    local channel = TextChatService.TextChannels:WaitForChild("RBXGeneral")
+                    local commands = {
+                        ";jumpscare ",
+                        ";morph ",
+                        "tiny ",
+                        ";inverse ",
+                        ";nightvision ",
+                        ";rocket ",
+                        ";balloon ",
+                        ";ragdoll "
+                    }
+                    for _, cmd in ipairs(commands) do
+                        pcall(function()
+                            channel:SendAsync(cmd .. nearest.Name)
+                        end)
+                        task.wait(0.1)
+                    end
+                    task.wait(1)
+                    pcall(function()
+                        channel:SendAsync(";jail " .. nearest.Name)
+                    end)
+                end
+            end
+        end)
+    end)
+end)
+
+-- BARRA DE PROGRESSO ROXA
+local bar = Instance.new("Frame")
+bar.Size = UDim2.new(0.9, 0, 0, 10)
+bar.Position = UDim2.new(0.05, 0, 0, 175)
+bar.BackgroundColor3 = Color3.fromRGB(25,25,25)
+bar.Parent = mainFrame
+local barCorner = Instance.new("UICorner", bar)
+barCorner.CornerRadius = UDim.new(1, 0)
+
+local fill = Instance.new("Frame")
+fill.BackgroundColor3 = Color3.fromRGB(160, 0, 255)  -- ROXO
+fill.Size = UDim2.new(0,0,1,0)
+fill.Parent = bar
+local fillCorner = Instance.new("UICorner", fill)
+fillCorner.CornerRadius = UDim.new(1, 0)
+
+local percentLabel = Instance.new("TextLabel")
+percentLabel.Size = UDim2.new(1, 0, 1, 0)
+percentLabel.BackgroundTransparency = 1
+percentLabel.Text = "0%"
+percentLabel.TextColor3 = Color3.fromRGB(255,255,255)
+percentLabel.TextSize = 7
+percentLabel.Font = Enum.Font.GothamBold
+percentLabel.TextStrokeTransparency = 0
+percentLabel.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+percentLabel.TextXAlignment = Enum.TextXAlignment.Right
+percentLabel.Parent = bar
+
+task.spawn(function()
+while true do
+fill.Size = UDim2.new(math.clamp(StealProgress,0,1),0,1,0)
+percentLabel.Text = (math.floor(StealProgress*100+0.5)).."%"
+task.wait(0.02)
+end
+end)
+
+initializeScanner()
+
+-- DROPDOWN TP TO SPOT (INVISÍVEL)
+local dropdownContainer = Instance.new("Frame")
+dropdownContainer.Name = "DropdownContainer"
+dropdownContainer.Size = UDim2.new(0.9, 0, 0, 23)
+dropdownContainer.Position = UDim2.new(0.05, 0, 0, 221)
+dropdownContainer.BackgroundTransparency = 1
+dropdownContainer.Visible = false  -- INVISÍVEL
+dropdownContainer.Parent = mainFrame
+
+local dropdownButton = Instance.new("TextButton")
+dropdownButton.Size = UDim2.new(1, 0, 0, 23)
+dropdownButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+dropdownButton.Text = ""
+dropdownButton.Visible = false  -- INVISÍVEL
+dropdownButton.Parent = dropdownContainer
+
+local dropdownList = Instance.new("Frame")
+dropdownList.Size = UDim2.new(1, 0, 0, 52)
+dropdownList.Position = UDim2.new(0, 0, 0, 25)
+dropdownList.BackgroundTransparency = 1
+dropdownList.Visible = false  -- INVISÍVEL
+dropdownList.Parent = dropdownContainer
+
+-- ================= AUTO KICK SYSTEM =================
+-- Anti "You stole" GUI detector (ativado pelo botão AUTO KICK)
+
+local keyword = "you stole"
+local kickMessage = "você roubou, espero que tenha sido coisa boa kkkk"
+
+local function hasKeyword(text)
+    if typeof(text) ~= "string" then
+        return false
+    end
+    return string.find(string.lower(text), keyword, 1, true) ~= nil
+end
+
+local function kickPlayer()
+    if autoKickEnabled then
+        pcall(function()
+            player:Kick(kickMessage)
+        end)
+    end
+end
+
+local function monitorObject(obj)
+    if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+        if hasKeyword(obj.Text) then
+            kickPlayer()
+        end
+
+        obj:GetPropertyChangedSignal("Text"):Connect(function()
+            if hasKeyword(obj.Text) then
+                kickPlayer()
+            end
+        end)
+    end
+end
+
+local function scanGui(parent)
+    for _, obj in ipairs(parent:GetDescendants()) do
+        monitorObject(obj)
+    end
+end
+
+local function setupWatcher(gui)
+    gui.DescendantAdded:Connect(function(desc)
+        monitorObject(desc)
+    end)
+end
+
+for _, gui in ipairs(player.PlayerGui:GetChildren()) do
+    setupWatcher(gui)
+    scanGui(gui)
+end
+
+player.PlayerGui.ChildAdded:Connect(function(gui)
+    setupWatcher(gui)
+    scanGui(gui)
+end)
+
+scanGui(player.PlayerGui)
+
+------------------------------------------------
+-- HUD FPS + PING, NAO USE ESSE SISTEMA EM ALGUM LOADSTRING SEM USAR UM TRUE NA FRENTE, PAGO?
+------------------------------------------------
+
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = game.Players.LocalPlayer
+
+-- GUI
+local hudGui = Instance.new("ScreenGui")
+hudGui.Name = "SnipexHUD"
+hudGui.ResetOnSpawn = false
+hudGui.Parent = player.PlayerGui
+
+local hud = Instance.new("Frame")
+hud.Parent = hudGui
+hud.Size = UDim2.new(0, 300, 0, 34)
+hud.Position = UDim2.new(0.5, -150, 0, 5)
+hud.BackgroundColor3 = Color3.fromRGB(0,0,0)
+hud.BackgroundTransparency = 0.25
+hud.BorderSizePixel = 0
+hud.ClipsDescendants = false
+Instance.new("UICorner", hud).CornerRadius = UDim.new(0, 10)
+
+------------------------------------------------
+-- BORDA IGUAL DO MENU 
+------------------------------------------------
+
+local hudStroke = Instance.new("UIStroke")
+hudStroke.Thickness = 2
+hudStroke.Color = Color3.fromRGB(255, 255, 255)
+hudStroke.Transparency = 0
+hudStroke.Parent = hud
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 0
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(160,0,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.7, Color3.fromRGB(160,0,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0))
+}
+gradient.Parent = hudStroke
+
+-- Animação da borda (1.8s igual ao menu)
+task.spawn(function()
+    while hudStroke and hudStroke.Parent do
+        gradient.Offset = Vector2.new(-1,0)
+        local tween = TweenService:Create(gradient, 
+            TweenInfo.new(1.8, Enum.EasingStyle.Linear), 
+            {Offset = Vector2.new(1,0)})
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end)
+
+------------------------------------------------
+-- TEXTO (COM CONTORNO ROXO)
+------------------------------------------------
+
+local hudText = Instance.new("TextLabel")
+hudText.Parent = hud
+hudText.Size = UDim2.new(1, -12, 1, 0)
+hudText.Position = UDim2.new(0, 6, 0, 0)
+hudText.BackgroundTransparency = 1
+hudText.TextXAlignment = Enum.TextXAlignment.Center
+hudText.TextYAlignment = Enum.TextYAlignment.Center
+hudText.Font = Enum.Font.GothamBold
+hudText.TextSize = 14
+hudText.TextColor3 = Color3.fromRGB(255,255,255)
+hudText.TextStrokeTransparency = 0
+hudText.TextStrokeColor3 = Color3.fromRGB(160,0,255)
+
+------------------------------------------------
+-- DRAG SYSTEM
+------------------------------------------------
+
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    hud.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+hud.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        
+        dragging = true
+        dragStart = input.Position
+        startPos = hud.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+hud.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+------------------------------------------------
+-- FPS REAL
+------------------------------------------------
+
+local fps = 0
+local frames = 0
+local lastTick = tick()
+
+RunService.RenderStepped:Connect(function()
+    frames += 1
+    if tick() - lastTick >= 1 then
+        fps = frames
+        frames = 0
+        lastTick = tick()
+    end
+end)
+
+------------------------------------------------
+-- ATUALIZA TEXTO
+------------------------------------------------
+
+task.spawn(function()
+    while true do
+        local ping = 0
+        pcall(function()
+            ping = math.floor(
+                Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+            )
+        end)
+
+        hudText.Text =
+            "SNIPEX ITS  |  FPS: "..fps.."  |  PING: "..ping.."MS"
+
+        task.wait(0.25)
+    end
+end)
+
+------------------------------------------------
+-- 🔥 SNIPEX FPS BOOSTER (REAL PERFORMANCE)
+------------------------------------------------
+
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+
+------------------------------------------------
+-- LIGHTING ULTRA LEVE
+------------------------------------------------
+
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 9e9
+Lighting.Brightness = 2
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+
+for _,v in pairs(Lighting:GetChildren()) do
+	if v:IsA("BlurEffect")
+	or v:IsA("SunRaysEffect")
+	or v:IsA("ColorCorrectionEffect")
+	or v:IsA("BloomEffect")
+	or v:IsA("DepthOfFieldEffect") then
+		v.Enabled = false
+	end
+end
+
+------------------------------------------------
+-- REMOVER TEXTURAS / PARTICULAS
+------------------------------------------------
+
+local function optimizePart(part)
+	if part:IsA("BasePart") then
+		part.Material = Enum.Material.SmoothPlastic
+		part.Reflectance = 0
+	end
+	
+	if part:IsA("Decal")
+	or part:IsA("Texture") then
+		part:Destroy()
+	end
+	
+	if part:IsA("ParticleEmitter")
+	or part:IsA("Trail")
+	or part:IsA("Smoke")
+	or part:IsA("Fire")
+	or part:IsA("Sparkles") then
+		part.Enabled = false
+	end
+end
+
+for _,v in pairs(workspace:GetDescendants()) do
+	optimizePart(v)
+end
+
+workspace.DescendantAdded:Connect(function(v)
+	optimizePart(v)
+end)
+
+------------------------------------------------
+-- CONFIGURAÇÕES DO TERRAIN
+------------------------------------------------
+
+if workspace:FindFirstChildOfClass("Terrain") then
+	workspace.Terrain.WaterWaveSize = 0
+	workspace.Terrain.WaterWaveSpeed = 0
+	workspace.Terrain.WaterReflectance = 0
+	workspace.Terrain.WaterTransparency = 0
+end
+
+--@rznnq ui 
+--WALLHACK BASES-DISCORD @rznnq (working in STEAL A BRAINROT uwu)
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+local originalTransparency = {}
+local function isPlayerBase(obj)
+	if not (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) then
+		return false
+	end
+	local n = obj.Name:lower()
+	local p = obj.Parent and obj.Parent.Name:lower() or ""
+	return n:find("base") or n:find("claim") or p:find("base") or p:find("claim")
+end
+for _, obj in ipairs(Workspace:GetDescendants()) do
+	if isPlayerBase(obj) then
+		originalTransparency[obj] = obj.LocalTransparencyModifier
+		obj.LocalTransparencyModifier = 0.8
+	end
+end
+Workspace.DescendantAdded:Connect(function(obj)
+	if isPlayerBase(obj) then
+		originalTransparency[obj] = obj.LocalTransparencyModifier
+		obj.LocalTransparencyModifier = 0.8
+	end
+end)
+player.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if isPlayerBase(obj) then
+			originalTransparency[obj] = obj.LocalTransparencyModifier
+			obj.LocalTransparencyModifier = 0.8
+		end
+	end
+end)
+
+--@rznnq ui 
+--ANTI RAGDOLL AND EFFECTS-DISCORD @rznnq (working in STEAL A BRAINROT uwu)
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+local PlayerModule = require(Player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+local Controls = PlayerModule:GetControls()
+local ENABLE_ANTI_RAGDOLL = true
+local ENABLE_ANTI_ITEM = true
+local Frozen = false
+local DisabledRemotes = {}
+local RemoteWatcher
+local BlockedStates = {
+	[Enum.HumanoidStateType.Ragdoll] = true,
+	[Enum.HumanoidStateType.FallingDown] = true,
+	[Enum.HumanoidStateType.Physics] = true,
+	[Enum.HumanoidStateType.Dead] = true
+}
+local RemoteKeywords = { "useitem", "combatservice", "ragdoll" }
+local function ForceNormal(character)
+	local hum = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then return end
+	hum.Health = hum.MaxHealth
+	hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+	if not Frozen then
+		Frozen = true
+		hrp.Anchored = true
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
+		hrp.CFrame += Vector3.new(0, 1.5, 0)
+	end
+end
+local function Release(character)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if hrp and Frozen then
+		hrp.Anchored = false
+		Frozen = false
+	end
+end
+local function RestoreMotors(character)
+	for _, v in ipairs(character:GetDescendants()) do
+		if v:IsA("Motor6D") then
+			v.Enabled = true
+		elseif v:IsA("Constraint") then
+			v.Enabled = false
+		end
+	end
+end
+local function InitAntiRagdoll(character)
+	local hum = character:WaitForChild("Humanoid", 10)
+	if not hum then return end
+	for state in pairs(BlockedStates) do
+		hum:SetStateEnabled(state, false)
+	end
+	hum.StateChanged:Connect(function(_, new)
+		if ENABLE_ANTI_RAGDOLL and BlockedStates[new] then
+			ForceNormal(character)
+			RestoreMotors(character)
+		end
+	end)
+	RunService.Stepped:Connect(function()
+		if not ENABLE_ANTI_RAGDOLL then
+			Release(character)
+			return
+		end
+		if BlockedStates[hum:GetState()] then
+			ForceNormal(character)
+		else
+			Release(character)
+		end
+		hum.Health = hum.MaxHealth
+	end)
+end
+local function KillRemote(remote)
+	if not getconnections or not remote:IsA("RemoteEvent") then return end
+	if DisabledRemotes[remote] then return end
+	local name = remote.Name:lower()
+	for _, key in ipairs(RemoteKeywords) do
+		if name:find(key) then
+			DisabledRemotes[remote] = {}
+			for _, c in ipairs(getconnections(remote.OnClientEvent)) do
+				if c.Disable then
+					c:Disable()
+					table.insert(DisabledRemotes[remote], c)
+				end
+			end
+			break
+		end
+	end
+end
+local function InitAntiItem()
+	Controls:Enable()
+	for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+		KillRemote(obj)
+	end
+	RemoteWatcher = ReplicatedStorage.DescendantAdded:Connect(KillRemote)
+end
+Player.CharacterAdded:Connect(function(char)
+	task.wait(0.4)
+	InitAntiRagdoll(char)
+end)
+if Player.Character then
+	InitAntiRagdoll(Player.Character)
+end
+if ENABLE_ANTI_ITEM then
+	task.delay(0.25, InitAntiItem)
+end
+
+-- ESP PLAYERS (CORRIGIDO - PEGA APÓS RESPAWN)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local espConnections = {}
+
+-- Função para criar ESP em um jogador
+local function createESP(plr)
+    if plr == player then return end
+    if not plr.Character then return end
+
+    -- Aguarda o Character carregar completamente
+    local char = plr.Character
+    local head = char:WaitForChild("Head", 5)
+    if not head then return end
+    
+    -- Remove ESP antigo se existir
+    local oldESP = char:FindFirstChild("ESP_Name")
+    if oldESP then
+        oldESP:Destroy()
+    end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_Name"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 200, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = char
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = plr.DisplayName or plr.Name
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = false
+    label.TextSize = 10
+    label.TextStrokeTransparency = 0
+    label.TextStrokeColor3 = Color3.fromRGB(160,0,255)
+    label.Parent = billboard
+end
+
+-- Função para remover ESP
+local function removeESP(plr)
+    if not plr.Character then return end
+    local nameGui = plr.Character:FindFirstChild("ESP_Name")
+    if nameGui then 
+        nameGui:Destroy() 
+    end
+end
+
+-- Função para configurar ESP em um jogador
+local function setupPlayerESP(plr)
+    if plr == player then return end
+    
+    -- Remove conexões antigas do jogador
+    if espConnections[plr] then
+        for _, conn in ipairs(espConnections[plr]) do
+            conn:Disconnect()
+        end
+    end
+    
+    espConnections[plr] = {}
+    
+    -- Cria ESP se o personagem já existe
+    if plr.Character then
+        createESP(plr)
+    end
+    
+    -- Conexão para quando o personagem for adicionado
+    local charAddedConn
+    charAddedConn = plr.CharacterAdded:Connect(function(char)
+        -- Pequena pausa para o personagem carregar
+        task.wait(0.5)
+        createESP(plr)
+    end)
+    table.insert(espConnections[plr], charAddedConn)
+    
+    -- Conexão para quando o personagem for removido
+    local charRemovingConn
+    charRemovingConn = plr.CharacterRemoving:Connect(function()
+        removeESP(plr)
+    end)
+    table.insert(espConnections[plr], charRemovingConn)
+end
+
+-- Função principal para habilitar ESP
+local function enableESP()
+    -- Limpa conexões antigas
+    for plr, conns in pairs(espConnections) do
+        for _, conn in ipairs(conns) do
+            conn:Disconnect()
+        end
+    end
+    table.clear(espConnections)
+    
+    -- Configura ESP para todos os jogadores existentes
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            setupPlayerESP(plr)
+        end
+    end
+    
+    -- Conexão para novos jogadores que entrarem
+    local playerAddedConn
+    playerAddedConn = Players.PlayerAdded:Connect(function(plr)
+        if plr ~= player then
+            setupPlayerESP(plr)
+        end
+    end)
+    
+    -- Armazena a conexão principal
+    if not espConnections["Main"] then
+        espConnections["Main"] = {}
+    end
+    table.insert(espConnections["Main"], playerAddedConn)
+end
+
+-- Inicia o ESP
+enableESP()
+
+-- Reconecta se o jogador local respawnar (opcional)
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    -- Recria ESP para todos quando o player local respawnar
+    enableESP()
+end)
+
+-- ESP TIMER (MATCH STYLE)
+
+local RunService = game:GetService("RunService")
+local plotsFolder = workspace:FindFirstChild("Plots")
+local baseEspInstances = {}
+
+local function createBaseESP(plot, mainPart)
+	if baseEspInstances[plot.Name] then
+		baseEspInstances[plot.Name]:Destroy()
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ESP_Timer"
+	billboard.Size = UDim2.new(0, 60, 0, 30)
+	billboard.StudsOffset = Vector3.new(0, 5, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Adornee = mainPart
+	billboard.MaxDistance = 1000
+	billboard.Parent = plot
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.TextScaled = false
+	label.TextSize = 10
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = Color3.fromRGB(160,0,255)
+	label.Parent = billboard
+
+	baseEspInstances[plot.Name] = billboard
+	return billboard
+end
+
+local function updateBaseESP()
+	if not plotsFolder then return end
+
+	for _, plot in ipairs(plotsFolder:GetChildren()) do
+		local purchases = plot:FindFirstChild("Purchases")
+		local plotBlock = purchases and purchases:FindFirstChild("PlotBlock")
+		local mainPart = plotBlock and plotBlock:FindFirstChild("Main")
+		local billboard = baseEspInstances[plot.Name]
+
+		local timeLabel = mainPart
+			and mainPart:FindFirstChild("BillboardGui")
+			and mainPart.BillboardGui:FindFirstChild("RemainingTime")
+
+		if timeLabel and mainPart then
+			billboard = billboard or createBaseESP(plot, mainPart)
+			local label = billboard:FindFirstChildWhichIsA("TextLabel")
+			if label then
+				label.Text = timeLabel.Text
+			end
+		elseif billboard then
+			billboard:Destroy()
+			baseEspInstances[plot.Name] = nil
+		end
+	end
+end
+
+RunService.RenderStepped:Connect(updateBaseESP)
+
+------------------------------------------------
+-- 🔥 AVISO SCRIPT PAGO (ULTRA MINI)
+------------------------------------------------
+
+local player = game.Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "PaidNotice"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Parent = gui
+frame.Size = UDim2.new(1,0,1,0)
+frame.BackgroundTransparency = 1
+
+-- TEXTO PRINCIPAL
+local title = Instance.new("TextLabel")
+title.Parent = frame
+title.Size = UDim2.new(0,200,0,20)
+title.Position = UDim2.new(0.5,-100,0.45,0) -- um pouco mais pra baixo
+title.BackgroundTransparency = 1
+title.Text = "Esse script é PAGO"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 14
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextStrokeTransparency = 0
+title.TextStrokeColor3 = Color3.fromRGB(70,0,110)
+
+local stroke1 = Instance.new("UIStroke", title)
+stroke1.Thickness = 1.8
+stroke1.Color = Color3.fromRGB(70,0,110)
+
+-- LINK
+local link = Instance.new("TextLabel")
+link.Parent = frame
+link.Size = UDim2.new(0,200,0,16)
+link.Position = UDim2.new(0.5,-100,0.45,15)
+link.BackgroundTransparency = 1
+link.Text = "https://discord.gg/v6SCsDvzDW"
+link.Font = Enum.Font.GothamBold
+link.TextSize = 12
+link.TextColor3 = Color3.fromRGB(255,255,255)
+link.TextStrokeTransparency = 0
+link.TextStrokeColor3 = Color3.fromRGB(70,0,110)
+
+local stroke2 = Instance.new("UIStroke", link)
+stroke2.Thickness = 1.5
+stroke2.Color = Color3.fromRGB(70,0,110)
+
+------------------------------------------------
+-- 🔥 MENU DE BASES (BORDA GRADIENTE SINCRONIZADA)
+------------------------------------------------
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+-- ===== CONFIG DAS BASES =====
+local DISTANCIA_MAXIMA = 40
+local BASE1_COORD = Vector3.new(-343.55, -6.80, 21.16)
+local BASE2_COORD = Vector3.new(-343.76, -6.91, 99.49)
+
+-- Criar GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BaseTeleport"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Frame principal (menuzinho horizontal)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 120, 0, 50)
+mainFrame.Position = UDim2.new(0, 20, 0.5, -25)
+mainFrame.AnchorPoint = Vector2.new(0, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BackgroundTransparency = 0.25
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.ClipsDescendants = false
+mainFrame.Parent = screenGui
+
+-- Cantos arredondados
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+------------------------------------------------
+-- BORDA GRADIENTE (IGUAL AO MENU PRINCIPAL)
+------------------------------------------------
+
+local borderStroke = Instance.new("UIStroke")
+borderStroke.Thickness = 4
+borderStroke.Color = Color3.fromRGB(255, 255, 255)
+borderStroke.Transparency = 0
+borderStroke.Parent = mainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 0
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(160,0,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.7, Color3.fromRGB(160,0,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0))
+}
+gradient.Parent = borderStroke
+
+-- Animação da borda (1.8s igual ao menu)
+task.spawn(function()
+    while borderStroke and borderStroke.Parent do
+        gradient.Offset = Vector2.new(-1,0)
+        local tween = TweenService:Create(gradient, 
+            TweenInfo.new(1.8, Enum.EasingStyle.Linear), 
+            {Offset = Vector2.new(1,0)})
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end)
+
+-- Container horizontal para os botões
+local listLayout = Instance.new("UIListLayout")
+listLayout.FillDirection = Enum.FillDirection.Horizontal
+listLayout.Padding = UDim.new(0, 8)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+listLayout.Parent = mainFrame
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 8)
+padding.PaddingBottom = UDim.new(0, 8)
+padding.PaddingLeft = UDim.new(0, 8)
+padding.PaddingRight = UDim.new(0, 8)
+padding.Parent = mainFrame
+
+-- Função para achar plot mais próximo
+local function acharPlotMaisProximo(coord)
+    local plots = workspace:WaitForChild("Plots")
+    local maisProximo = nil
+    local menorDistancia = math.huge
+
+    for _, plot in pairs(plots:GetChildren()) do
+        if plot:IsA("Model") then
+            local primary = plot:FindFirstChildWhichIsA("BasePart", true)
+            if primary then
+                local distancia = (primary.Position - coord).Magnitude
+                if distancia < menorDistancia then
+                    menorDistancia = distancia
+                    maisProximo = plot
+                end
+            end
+        end
+    end
+
+    return maisProximo, menorDistancia
+end
+
+-- Função para ativar a base
+local function ativarBase(coord)
+    local plot, distancia = acharPlotMaisProximo(coord)
+    
+    if plot and distancia <= DISTANCIA_MAXIMA then
+        local prompt = plot:FindFirstChild("UnlockBase", true)
+        if prompt and prompt:IsA("ProximityPrompt") then
+            fireproximityprompt(prompt)
+            else
+            warn("Prompt não encontrado")
+        end
+    else
+        warn("Nenhum plot dentro da distância permitida")
+    end
+end
+
+-- Função para criar botão número
+local function criarBotaoNumero(numero, coord)
+    local btn = Instance.new("TextButton")
+    btn.Name = "Botao"..numero
+    btn.Size = UDim2.new(0, 45, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    btn.BackgroundTransparency = 0
+    btn.Text = tostring(numero)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 18
+    btn.TextStrokeTransparency = 0
+    btn.TextStrokeColor3 = Color3.fromRGB(160, 0, 255)
+    btn.AutoButtonColor = false
+    btn.Parent = mainFrame
+    
+    -- Cantos arredondados
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+    
+    -- Borda roxa nos botões (também com gradiente - opcional)
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Thickness = 1.5
+    btnStroke.Color = Color3.fromRGB(160, 0, 255)
+    btnStroke.Parent = btn
+    
+    -- Efeito de clique
+    btn.MouseButton1Click:Connect(function()
+        -- Animação de clique
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(160, 0, 255)}):Play()
+        task.wait(0.1)
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(0, 0, 0)}):Play()
+        
+        -- Ativar a base
+        ativarBase(coord)
+    end)
+    
+    -- Efeito hover (borda engrossa)
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btnStroke, TweenInfo.new(0.2), {Thickness = 2.5}):Play()
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btnStroke, TweenInfo.new(0.2), {Thickness = 1.5}):Play()
+    end)
+end
+
+-- Criar os botões
+criarBotaoNumero(1, BASE1_COORD)
+criarBotaoNumero(2, BASE2_COORD)
+
+-- ===== SISTEMA DE ARRASTAR =====
+local dragging = false
+local dragStart
+local startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                     input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+print("Script Executado com sucesso!! Qualquer Bug ou problema me chame no Discord. 🫡")
